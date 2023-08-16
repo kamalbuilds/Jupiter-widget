@@ -7,7 +7,7 @@ import { INPUT_MINT_ADDRESS, OUTPUT_MINT_ADDRESS } from "../../constants";
 import styles from "./JupiterForm.module.css";
 import { useJupiterApiContext } from "../../contexts/JupiterApiProvider";
 
-interface IJupiterFormProps {}
+interface IJupiterFormProps { }
 interface IState {
   amount: number;
   inputMint: PublicKey;
@@ -19,6 +19,7 @@ const JupiterForm: FunctionComponent<IJupiterFormProps> = (props) => {
   const wallet = useWallet();
   const { connection } = useConnection();
   const { tokenMap, routeMap, loaded, api } = useJupiterApiContext();
+  console.log(tokenMap,"tm")
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formValue, setFormValue] = useState<IState>({
@@ -41,6 +42,18 @@ const JupiterForm: FunctionComponent<IJupiterFormProps> = (props) => {
     formValue.inputMint?.toBase58(),
     formValue.outputMint?.toBase58(),
   ]);
+
+  const downloadJSON = (data: any, filename: string) => {
+    const blob = new Blob([JSON.stringify(data, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   // Good to add debounce here to avoid multiple calls
   const fetchRoute = React.useCallback(() => {
@@ -178,9 +191,8 @@ const JupiterForm: FunctionComponent<IJupiterFormProps> = (props) => {
 
       <div className="flex justify-center">
         <button
-          className={`${
-            isLoading ? "opacity-50 cursor-not-allowed" : ""
-          } inline-flex items-center px-4 py-2 mt-4 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500`}
+          className={`${isLoading ? "opacity-50 cursor-not-allowed" : ""
+            } inline-flex items-center px-4 py-2 mt-4 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500`}
           type="button"
           onClick={fetchRoute}
           disabled={isLoading}
@@ -195,7 +207,7 @@ const JupiterForm: FunctionComponent<IJupiterFormProps> = (props) => {
       </div>
 
       <div>Total routes: {routes?.length}</div>
-
+      {console.log(routes?.[0], "r0")}
       {routes?.[0] &&
         (() => {
           const route = routes[0];
@@ -218,6 +230,7 @@ const JupiterForm: FunctionComponent<IJupiterFormProps> = (props) => {
         })()}
 
       <div className="flex justify-center mt-4">
+        {/* {console.log(wallet?.publicKey.toBase58(), "key")} */}
         <button
           type="button"
           disabled={isSubmitting}
@@ -239,8 +252,12 @@ const JupiterForm: FunctionComponent<IJupiterFormProps> = (props) => {
                   body: {
                     route: routes[0],
                     userPublicKey: wallet.publicKey.toBase58(),
+                    //wrapunwrapsol optional
                   },
                 });
+
+                console.log(swapTransaction, setupTransaction, cleanupTransaction, "swaptxn");
+
                 const transactions = (
                   [
                     setupTransaction,
@@ -250,11 +267,44 @@ const JupiterForm: FunctionComponent<IJupiterFormProps> = (props) => {
                 ).map((tx) => {
                   return Transaction.from(Buffer.from(tx, "base64"));
                 });
+                
+                // trying code
+                // (async () => {
+                //   for (let serializedTransaction of [
+                //     setupTransaction,
+                //     swapTransaction,
+                //     cleanupTransaction,
+                //   ].filter(Boolean)) {
 
-                await wallet.signAllTransactions(transactions);
+
+                //     const transaction = Transaction.from(
+                //       Buffer.from(serializedTransaction, "base64")
+                //     );
+
+                //     console.log(transaction,"txn now")
+                    
+                //     const txid = await wallet.sendTransaction(transaction,connection);
+                //     // const txid = await connection.sendTransaction(transaction, [wallet.payer], {
+                //     //   skipPreflight: false,
+                //     // });
+                //     await connection.confirmTransaction(txid);
+
+                //   }
+                // })();
+                // end of trying code
+
+                console.log(transactions, "sign txn start");
+
+                                // Download transactions as JSON
+                                downloadJSON(transactions, "transactions.json");
+
+                await wallet.signTransaction(transactions[0])
+                // await wallet.signAllTransactions(transactions);
+                console.log("signed the txn");
                 for (let transaction of transactions) {
                   // get transaction object from serialized transaction
 
+                  console.log(transaction,"txn now :")
                   // perform the swap
                   const txid = await connection.sendRawTransaction(
                     transaction.serialize()
