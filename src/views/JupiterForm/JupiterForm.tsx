@@ -3,7 +3,7 @@ import { PublicKey, Transaction } from "@solana/web3.js";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 
 import { INPUT_MINT_ADDRESS, OUTPUT_MINT_ADDRESS } from "../../constants";
-
+console.log(INPUT_MINT_ADDRESS,OUTPUT_MINT_ADDRESS,"mint")
 import styles from "./JupiterForm.module.css";
 import { useJupiterApiContext } from "../../contexts/JupiterApiProvider";
 
@@ -29,7 +29,7 @@ const JupiterForm: FunctionComponent<IJupiterFormProps> = (props) => {
     slippage: 1, // 0.1%
   });
   const [routes, setRoutes] = useState<
-    Awaited<ReturnType<typeof api.v1QuoteGet>>["data"]
+    Awaited<ReturnType<typeof api.v4QuoteGetRaw>>["data"]
   >([]);
 
   const [inputTokenInfo, outputTokenInfo] = useMemo(() => {
@@ -43,29 +43,30 @@ const JupiterForm: FunctionComponent<IJupiterFormProps> = (props) => {
     formValue.outputMint?.toBase58(),
   ]);
 
-  const downloadJSON = (data: any, filename: string) => {
-    const blob = new Blob([JSON.stringify(data, null, 2)], {
-      type: "application/json",
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
+  // const downloadJSON = (data: any, filename: string) => {
+  //   const blob = new Blob([JSON.stringify(data, null, 2)], {
+  //     type: "application/json",
+  //   });
+  //   const url = URL.createObjectURL(blob);
+  //   const a = document.createElement("a");
+  //   a.href = url;
+  //   a.download = filename;
+  //   a.click();
+  //   URL.revokeObjectURL(url);
+  // };
 
   // Good to add debounce here to avoid multiple calls
   const fetchRoute = React.useCallback(() => {
     setIsLoading(true);
     api
-      .v1QuoteGet({
+      .v4QuoteGetRaw({
         amount: formValue.amount,
         inputMint: formValue.inputMint.toBase58(),
         outputMint: formValue.outputMint.toBase58(),
-        slippage: formValue.slippage,
+        slippageBps: formValue.slippage,
       })
       .then(({ data }) => {
+        console.log(data,"d is")
         if (data) {
           setRoutes(data);
         }
@@ -248,7 +249,7 @@ const JupiterForm: FunctionComponent<IJupiterFormProps> = (props) => {
                   swapTransaction,
                   setupTransaction,
                   cleanupTransaction,
-                } = await api.v1SwapPost({
+                } = await api.v4SwapPost({
                   body: {
                     route: routes[0],
                     userPublicKey: wallet.publicKey.toBase58(),
@@ -295,11 +296,11 @@ const JupiterForm: FunctionComponent<IJupiterFormProps> = (props) => {
 
                 console.log(transactions, "sign txn start");
 
-                                // Download transactions as JSON
-                                downloadJSON(transactions, "transactions.json");
+                // // Download transactions as JSON
+                // downloadJSON(transactions, "transactions.json");
 
-                await wallet.signTransaction(transactions[0])
-                // await wallet.signAllTransactions(transactions);
+                // await wallet.signTransaction(transactions[0])
+                await wallet.signAllTransactions(transactions);
                 console.log("signed the txn");
                 for (let transaction of transactions) {
                   // get transaction object from serialized transaction
